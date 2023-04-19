@@ -44,23 +44,26 @@ from krcal.NB_utils.plt_energy_functions      import resolution_r_z, plot_resolu
 from invisible_cities.reco.corrections        import apply_all_correction
 from invisible_cities.reco.corrections        import apply_all_correction_single_maps
 
-run_number = 8087 # 0 or negative for MC
+run_number = 8088 # 0 or negative for MC
 rcut = 100
-zcut = 200
+zcut = 600
+z_range = (0, 600)
+q_range = (400, 2000)
 outputdir = '/n/home12/tcontreras/plots/nz_analysis/krcal/'
-maps_dir = '/n/holystore01/LABS/guenette_lab/Users/tcontreras/nz_analysis/krcal/maps/'
-sipm_map = 'map_8087_test.h5'
+maps_dir = '/n/holystore01/LABS/guenette_lab/Users/tcontreras/nz_studies/maps/'
+sipm_map = 'map_sipm_8089_z100.h5'
 pmt_map = 'map_pmt_8087_test.h5'
 this_map = read_maps(maps_dir+sipm_map)
 
-input_folder       = '/n/holystore01/LABS/guenette_lab/Lab/data/NEXT/NEW/data/trigger1/8088/samp_int_thresh/samp1_int3/kdsts/'
+input_folder       = '/n/holystore01/LABS/guenette_lab/Lab/data/NEXT/NEW/data/trigger1/8088/kdsts/nothresh/'
 input_dst_file     = '*.h5'
 input_dsts         = glob.glob(input_folder + input_dst_file)
 
 ### Load files in make R cut
 dst = load_dsts(input_dsts, 'DST', 'Events')
 dst = dst.sort_values(by=['time'])
-dst = dst[in_range(dst.R, 0, rcut)]
+dst = dst[in_range(dst.Z, 0, zcut)]
+#dst = dst[in_range(dst.R, 0, rcut)]
 
 ### Select events with 1 S1 and 1 S2
 mask_s1 = dst.nS1==1
@@ -71,13 +74,21 @@ nevts_before     = dst[mask_s1].event.nunique()
 eff              = nevts_after / nevts_before
 print('S2 selection efficiency: ', eff*100, '%')
 
-### Band Selection (S2 energy or q selection?)
-z_range_plot = (0, 600)
-q_range_plot = (0, 1000)
-x, y, _ = profileX(dst[mask_s2].Z, dst[mask_s2].S2q, yrange=q_range_plot)
-e0_seed, lt_seed = expo_seed(x, y)
-lower_e0, upper_e0 = e0_seed-200, e0_seed+200    # play with these values to make the band broader or narrower
+# Remove expected noise
+#     m found by fitting to noise given window
+print('S2q before = ', np.mean(dst.S2q))
+m = 124.
+q_noisesub = dst.S2q.to_numpy() - m*(dst.S2w.to_numpy())
+dst.S2q = q_noisesub
+print('S2q after = ', np.mean(dst.S2q))
+print('S2q after, masked = ', np.mean(dst[mask_s2].S2q))
 
+### Band Selection (S2 energy or q selection?)
+x, y, _ = profileX(dst[mask_s2].Z, dst[mask_s2].S2q, xrange=(100,550), yrange=q_range)
+e0_seed, lt_seed = expo_seed(x, y)
+lower_e0, upper_e0 = e0_seed-500, e0_seed+500    # play with these values to make the band broader or narrower
+
+print(lower_e0, upper_e0, e0_seed, lt_seed)
 sel_krband = np.zeros_like(mask_s2)
 Zs = dst[mask_s2].Z
 sel_krband[mask_s2] = in_range(dst[mask_s2].S2q, (lower_e0)*np.exp(Zs/lt_seed), (upper_e0)*np.exp(Zs/lt_seed))
@@ -86,12 +97,9 @@ sel_dst = dst[sel_krband]
 geom_corr = e0_xy_correction(this_map)
 correction = apply_all_correction_single_maps(this_map,this_map,apply_temp = False)
 
-sel_dst = sel_dst[sel_dst.R<100]
 corr_geo = geom_corr(sel_dst.X, sel_dst.Y)
 corr_tot = correction(sel_dst.X, sel_dst.Y, sel_dst.Z, sel_dst.time)
 
-q_range = (400,1000)
-z_range = (0,600)
 fig = plt.figure(figsize=(10,10))
 plt.subplot(3, 1, 1)
 plt.hist2d(sel_dst.Z, sel_dst.S2q, 50, [z_range,q_range])
@@ -105,8 +113,6 @@ plt.title('Total corrected energy with SiPMs');
 plt.savefig(outputdir+'corrections.png')
 plt.close()
 
-q_range = (400,1000)
-z_range = (10, 550)
 fig = plt.figure(figsize=(14,8))
 plt.subplot(1, 2, 1)
 
@@ -149,7 +155,7 @@ plt.close()
 # Testing
 from krcal.core.fit_lt_functions import fit_lifetime, fit_lifetime_profile, lt_params_from_fcs
 from krcal.NB_utils.plt_functions import plot_fit_lifetime
-fc = fit_lifetime(sel_dst.Z, sel_dst.S2q*corr_geo, 50, 50, (0,zcut), q_range)
+fc = fit_lifetime(sel_dst.Z, sel_dst.S2q*corr_geo, 50, 50, (100,zcut), q_range)
 plot_fit_lifetime(fc)
 plt.ylabel('Q [pes]')
 plt.savefig(outputdir+'lt_test.png')

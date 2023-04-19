@@ -40,21 +40,45 @@ from invisible_cities.core.core_functions     import in_range
 from invisible_cities.core.core_functions     import shift_to_bin_centers
 from invisible_cities.core.fit_functions      import profileX
 
-run_number = 8087 # 0 or negative for MC
-outputdir = '/n/home12/tcontreras/plots/nz_analysis/krcal/zs_'
-output_maps_folder = '/n/holystore01/LABS/guenette_lab/Users/tcontreras/nz_studies/maps/'
-map_file_out     = os.path.join(output_maps_folder, f'map_sipm_{run_number}.h5')
-
-input_folder       = '/n/holystore01/LABS/guenette_lab/Lab/data/NEXT/NEW/data/trigger1/'+str(run_number)+'/'
-input_dst_file     = '*.h5'
-input_dsts         = glob.glob(input_folder + input_dst_file)
-rcut = 300
+run_all = True
+nfiles = 10
+run_number = 8089 # 0 or negative for MC
+z_range = (0, 550)
+q_range = (0, 2000)
+lt_range = (0,30000)
+rcut = 200
 zcut = 600
+outputdir = '/n/home12/tcontreras/plots/nz_analysis/krcal/ns_'
+output_maps_folder = '/n/holystore01/LABS/guenette_lab/Users/tcontreras/nz_studies/maps/'
+map_file_out     = os.path.join(output_maps_folder, f'map_sipm_{run_number}_z100.h5')
+
+input_folder       = '/n/holystore01/LABS/guenette_lab/Lab/data/NEXT/NEW/data/trigger1/'+str(run_number)+'/kdsts/nothresh/'
+geo_folder       = '/n/holystore01/LABS/guenette_lab/Lab/data/NEXT/NEW/data/trigger1/'+str(run_number)+'/kdsts/sthresh/'
+
+if not run_all:
+    input_dsts = [input_folder+'run_'+str(run_number)+'_trigger1_'+str(i)+'_kdst.h5' for i in range(0,nfiles)]
+    geo_dsts = [geo_folder+'run_'+str(run_number)+'_trigger1_'+str(i)+'_kdst.h5' for i in range(0,nfiles)]
+else:
+    input_dst_file     = '*.h5'
+    input_dsts         = glob.glob(input_folder + input_dst_file)
+    geo_dsts         = glob.glob(geo_folder + input_dst_file)
+
 
 ### Load files in make R cut
 dst = load_dsts(input_dsts, 'DST', 'Events')
+geo_dst = load_dsts(geo_dsts, 'DST', 'Events')
 dst = dst.sort_values(by=['time'])
-dst = dst[in_range(dst.R, 0, rcut)]
+geo_dst = geo_dst.sort_values(by=['time'])
+
+# Remove expected noise
+#     m found by fitting to noise given window
+m = 124.
+plt.figure(figsize=(6, 16))
+q_noisesub = dst.S2q.to_numpy() - m*(dst.S2w.to_numpy())
+dst.S2q = q_noisesub
+
+print('Geo: ',len(np.unique(geo_dst.event.to_numpy())))
+print('E: ',len(np.unique(dst.event.to_numpy())))
 
 ### Plot x,y,q distributions before selections
 plt.figure(figsize=(8.5, 7));
@@ -64,6 +88,34 @@ plt.ylabel('Y (mm)');
 plt.colorbar();
 plt.savefig(outputdir+'xy.png')
 plt.close()
+
+### Plot x,y,q distributions before selections
+plt.figure(figsize=(8.5, 7));
+plt.hist2d(geo_dst.X, geo_dst.Y, 100);
+plt.xlabel('X (mm)');
+plt.ylabel('Y (mm)');
+plt.colorbar();
+plt.savefig(outputdir+'xy_geo.png')
+plt.close()
+
+### Plot q distributions before selections
+plt.figure(figsize=(8.5, 7))
+plt.hist(dst.S2q, 100)
+plt.xlabel('S2q [pes]')
+plt.savefig(outputdir+'q.png')
+plt.close()
+
+### Plot q distributions before selections
+plt.figure(figsize=(8.5, 7))
+plt.hist(geo_dst.S2q, 100)
+plt.xlabel('S2q [pes]')
+plt.savefig(outputdir+'q_geo.png')
+plt.close()
+
+dst.X = geo_dst.X 
+dst.Y = geo_dst.Y
+dst.R = geo_dst.R
+dst = dst[in_range(dst.R, 0, rcut)]
 
 if run_number>0:
     plt.figure(figsize=(10, 6));
@@ -86,20 +138,19 @@ print('S2 selection efficiency: ', eff*100, '%')
 
 # Plot S2 info
 s2d = s2d_from_dst(dst[mask_s1])
-plot_s2histos(dst, s2d, bins=20, emin=400, emax=900, figsize=(10,10))
+plot_s2histos(dst, s2d, bins=20, emin=q_range[0], emax=q_range[-1], figsize=(10,10))
 plt.savefig(outputdir+'s2.png')
 plt.close()
 
 ### Band Selection (S2 energy or q selection?)
-z_range_plot = (0, 600)
-q_range_plot = (400, 900)
-x, y, _ = profileX(dst[mask_s2].Z, dst[mask_s2].S2q, xrange=(100,zcut), yrange=q_range_plot)
+x, y, _ = profileX(dst[mask_s2].Z, dst[mask_s2].S2q, xrange=(100,zcut), yrange=q_range)
 e0_seed, lt_seed = expo_seed(x, y)
-lower_e0, upper_e0 = e0_seed-200, e0_seed+200    # play with these values to make the band broader or narrower
+lower_e0, upper_e0 = e0_seed-500, e0_seed+500    # play with these values to make the band broader or narrower
+print(e0_seed, lt_seed)
 
 plt.figure(figsize=(8, 5.5))
-xx = np.linspace(z_range_plot[0], z_range_plot[1], 100)
-plt.hist2d(dst[mask_s2].Z, dst[mask_s2].S2q, 50, [z_range_plot, q_range_plot], cmin=1);
+xx = np.linspace(z_range[0], z_range[1], 100)
+plt.hist2d(dst[mask_s2].Z, dst[mask_s2].S2q, 50, [z_range, q_range], cmin=1)
 plt.plot(xx, (lower_e0)*np.exp(xx/lt_seed), color='red', linewidth=1.7)
 plt.plot(xx, (upper_e0)*np.exp(xx/lt_seed), color='red', linewidth=1.7)
 plt.xlabel(r'Z ($\mu$s)');
@@ -138,9 +189,9 @@ print('Number of XY bins: ', number_of_bins)
 map_params = {'nbins_z': 30,
               'nbins_e': 25,
               'z_range': (100, 550),
-              'q_range': (400, 900),
+              'q_range': (q_range[0], q_range[-1]),
               'chi2_range': (0, 10),
-              'lt_range': (0,10000),
+              'lt_range': lt_range,
               'nmin': 100,
               'maxFailed': 10000,
               'r_max': 500,
@@ -183,14 +234,15 @@ regularized_maps = remove_peripheral(map   = regularized_maps,
                                      rfid  = r_max           )
 
 draw_xy_maps(regularized_maps,
-             ltlims = (0, 10000),
+             e0lims = q_range,
+             ltlims = lt_range,
              figsize=(14,10))
 plt.savefig(outputdir+'maps.png')
 plt.close()
 
 plt.figure(figsize=(15, 5))
 plt.subplot(121)
-plt.hist(regularized_maps.lt.values.flatten(), 100, (0, 10000));
+plt.hist(regularized_maps.lt.values.flatten(), 100, lt_range);
 plt.title('lt')
 plt.xlabel('lt (mus)');
 plt.subplot(122)

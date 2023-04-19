@@ -49,7 +49,7 @@ from invisible_cities.reco.corrections        import apply_all_correction_single
 run_number = 8088 # 0 or negative for MC
 rcut = 100
 zcut = 200
-name = 'samp2_int2'
+name = 'samp1_int4'
 outputdir = '/n/home12/tcontreras/plots/nz_analysis/'+name+'/'
 maps_dir = '/n/holystore01/LABS/guenette_lab/Users/tcontreras/nz_studies/maps/'
 sipm_map = 'map_8087_test.h5'
@@ -100,7 +100,6 @@ sel_dst = dst[sel_krband]
 geom_corr = e0_xy_correction(this_map)
 correction = apply_all_correction_single_maps(this_map,this_map,apply_temp = False)
 
-sel_dst = sel_dst[sel_dst.R<100]
 corr_geo = geom_corr(sel_dst.X, sel_dst.Y)
 corr_tot = correction(sel_dst.X, sel_dst.Y, sel_dst.Z, sel_dst.time)
 
