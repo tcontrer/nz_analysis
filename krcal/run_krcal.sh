@@ -10,4 +10,4 @@
 source /n/holystore01/LABS/guenette_lab/Lab/data/NEXT/FLEX/mc/eres_22072022/IC_setup.sh
 source /n/holystore01/LABS/guenette_lab/Users/tcontreras/ICAROS/icaro_setup.sh
 
-python  /n/holystore01/LABS/guenette_lab/Users/tcontreras/nz_studies/nz_analysis/krcal/test_map_pmt.py
+python  /n/holystore01/LABS/guenette_lab/Users/tcontreras/nz_studies/nz_analysis/krcal/krcal_sipm_ns.py

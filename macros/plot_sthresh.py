@@ -11,7 +11,7 @@ import glob
 import numpy as np
   
 outdir = '/n/home12/tcontreras/plots/nz_analysis/'
-dirname = '/n/holystore01/LABS/guenette_lab/Users/tcontreras/nz_studies/data/data_23022023/'
+dirname = '/n/holystore01/LABS/guenette_lab/Users/tcontreras/nz_studies/data/data_w15_20032023/'
 runnumber = 8088
 files = glob.glob(dirname + '*.txt')
 

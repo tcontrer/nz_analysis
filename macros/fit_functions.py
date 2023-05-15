@@ -1,5 +1,7 @@
 import numpy as np
 import matplotlib as mpl
+import math
+import scipy.stats as stats
 mpl.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.offsetbox import AnchoredText
@@ -236,7 +238,7 @@ def chi2(f : FitFunction,
     """
     return chi2f(f.fn, len(f.values), x, y, sy)
 
-def plot_fit_energy(fc : FitCollection):
+def plot_fit_energy(fc : FitCollection, fit_range):
 
     if fc.fr.valid:
         par  = fc.fr.par
@@ -258,7 +260,7 @@ def plot_fit_energy(fc : FitCollection):
         ax.yaxis.set_minor_locator(AutoMinorLocator())
         _, _, _   = plt.hist(fc.hp.var,
                              bins = fc.hp.nbins,
-                             range=fc.hp.range,
+                             range=fit_range,
                              histtype='step',
                              edgecolor='black',
                              linewidth=1.5,
@@ -283,7 +285,7 @@ def print_fit_energy(fc : FitCollection):
         print(f' E sigma   = {par[2]} +-{err[2]} ')
         print(f' chi2    = {fc.fr.chi2} ')
 
-        print(f' Eres (FWHM)     (%) ={r}')
+        print(f' Eres(FWHM)     (%) ={r}')
         print(f' Eres (FWHM) Qbb (%) ={fe} ')
     except ZeroDivisionError:
         warnings.warn(f' mu  = {par[1]} ', UserWarning)
@@ -304,11 +306,76 @@ def get_fit_params(fc: FitCollection):
 
     return eres, fwhm, mean, eres_err, fwhm_err, mean_err, chi2
 
-def eres_err(fc : FitCollection):
-    
-    par  = fc.fr.par
-    err  = fc.fr.err
-    r  = 2.35 * 100 *  par[2] / par[1]
-    r_qbb = np.sqrt(41 / 2458) * r
-    err = (2.35*100/par[1])*np.sqrt(err[2]**2. + (par[2]**2. / par[1]**2.)*err[2]**2.)
-    return r, err, r_qbb, par[2], par[1]
+def Gaussian(mu, sigma, this_range=None):
+
+    if this_range == None:
+        this_range = (mu - 3*sigma, mu + 3*sigma)
+
+    x = np.linspace(this_range[0], this_range[1], 100)
+    y = stats.norm.pdf(x, mu, sigma)
+    return x, y
+
+def plot_fit_energy2(fc : FitCollection, data, plot_range):
+
+    if fc.fr.valid:
+        par  = fc.fr.par
+        x    = fc.hp.var
+        r    = 2.35 * 100 *  par[2] / par[1]
+        entries  =  f'Entries = {len(x)}'
+        mean     =  r'$\mu$ = {:7.2f}'.format(par[1])
+        sigma    =  r'$\sigma$ = {:7.2f}'.format(par[2])
+        rx       =  r'Eres (FWHM) % = {:7.2f}'.format(r)
+        chi2     =  r'$\chi^2$ = {:7.2f}'.format(fc.fr.chi2)
+        stat     =  f'{entries}\n{mean}\n{sigma}\n{chi2}\n{rx}'
+
+        f, ax = plt.subplots(1,1)
+        ax.ticklabel_format(axis="x", style="sci", scilimits=(0,0))
+        ax.tick_params(axis='both', direction='in', reset=True, labelsize=15, which='both')
+        ax.tick_params(which='major', length=7)
+        ax.tick_params(which='minor', length=4)
+        ax.xaxis.set_minor_locator(AutoMinorLocator())
+        ax.yaxis.set_minor_locator(AutoMinorLocator())
+        _, _, _   = plt.hist(data,
+                             bins = fc.hp.nbins,
+                             range=plot_range,
+                             histtype='step',
+                             edgecolor='black',
+                             linewidth=1.5,
+                             label=stat,
+                             density=True)
+
+        x, y = Gaussian(par[1], par[2], plot_range)
+        print('data', data)
+        print('plot_range', plot_range)
+        print('data in range', data[data > plot_range[0]])
+        amp = data.count() #len(fc.hp.var) #sum(fc.fp.f(fc.fp.x))
+        #y = fc.fp.f(x)
+        print('y', y)
+        print('amp', amp)
+        print('max data', data.max())
+        print('original y', fc.fp.f(fc.fp.x))
+        print('A', np.sqrt(2 * np.pi)/par[2])
+        """
+        y, b = np.histogram(data, bins= 1000, range=[np.min(data), np.max(data)])
+        x = shift_to_bin_centers(b)
+        peak = x[np.argmax(y)]
+        fit_range = (peak, peak + np.std(data)/4.) # only fit left half to avoid the tails
+
+        plot_data = data[data > plot_range[0]]
+        plot_data = plot_data[plot_data < plot_range[1]]
+        fit_data = data[data > fit_range[0]]
+        fit_data = fit_data[fit_data < fit_range[1]]
+        print('Area plotted', plot_data.count())
+        print('Area fitted', fit_data.count())
+        print('total area', data.count())
+        print('Area curve fit', par[0]*np.sqrt(2*np.pi)/par[2])
+
+        fit_x = fc.fp.x
+        fit_y = fc.fp.f(fc.fp.x)
+        fit_A = len(fc.fp.x)
+        """
+        plt.plot(x, y, "r-", lw=4)
+        anchored_text = AnchoredText(stat, loc=2)
+        ax.add_artist(anchored_text)
+    else:
+        warnings.warn(f' fit did not succeed, cannot plot ', UserWarning)

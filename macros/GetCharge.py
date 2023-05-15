@@ -17,10 +17,10 @@ bad_sipm_mean = 70
 bad_sipm_std = 70
 rcut = 100
 detector_db = 'new'
-s2_window = [798,808]
-outer_window = [1000,1010]
+s2_window = [794, 809] #[798,808]
+outer_window = [992, 1007] #[1000,1010]
 
-def GetCalibratedWaveforms(run_number, file_name):
+def GetRawWaveforms(run_number, file_name):
     # Load the data into events array
     i = 0
     events = []
@@ -36,22 +36,32 @@ def GetCalibratedWaveforms(run_number, file_name):
         del wfs
     events = np.array(events)
     print('Number of Events: '+str(len(events)))
+    
+    return events
 
+def GetWorstSiPMs(events, mean_thresh=70, std_thresh=70):
+    
     # Find suspicious SiPMs
     bad_sipms = []
     for event in range(0,len(events)):
         for sipm in range(len(events[event])):
-            mean = np.mean(events[event][sipm])
-            std = np.std(events[event][sipm])
-            if mean > 70 or std > 70:
+            wf = events[event][sipm]
+            wf = wf[wf>0] # Necessary for the case of zero suppressed data
+            mean = np.mean(wf)
+            std = np.std(wf)
+            if mean > mean_thresh or std > std_thresh:
                 bad_sipms.append(sipm)
-
+                
     worst_sipms = []
     for sipm in np.unique(bad_sipms):
         count = np.count_nonzero(bad_sipms == sipm)
         #print('SiPM '+str(sipm)+' suspicious in '+str(count)+' events')
         if count == len(events):
             worst_sipms.append(sipm)
+    
+    return worst_sipms
+
+def GetCalibratedWaveforms(run_number, events, worst_sipms):
 
     # Calibrate data
     cal_sipms = cp.calibrate_sipms(detector_db, run_number, 0)
@@ -61,8 +71,7 @@ def GetCalibratedWaveforms(run_number, file_name):
     calibrated_bad_sipms = calibrated_sipms
     calibrated_sipms = np.delete(calibrated_sipms, worst_sipms, axis=1)
 
-    return calibrated_sipms, worst_sipms
-
+    return calibrated_sipms
 
 def ApplyCutsAndSaveDcut(calibrated_sipms, worst_sipms, outfile, d_cuts, sipm_thresholds):
 
@@ -255,7 +264,9 @@ if __name__ == '__main__':
     d_cuts = [int(i) for i in d_cuts.split(',')]
     sipm_thresholds = [int(i) for i in sipm_thresholds.split(',')]
 
-    calibrated_sipms, worst_sipms = GetCalibratedWaveforms(run_number, file_name)
+    events = GetRawWaveforms(run_number, file_name)
+    worst_sipms = GetWorstSiPMs(events)
+    calibrated_sipms = GetCalibratedWaveforms(run_number, events, worst_sipms)
 
     #ApplyCutsAndSave(calibrated_sipms, worst_sipms, outfile, sipm_thresholds)
     #ApplyCutsAndSaveDcut(calibrated_sipms, worst_sipms, outfile, d_cuts, sipm_thresholds)
