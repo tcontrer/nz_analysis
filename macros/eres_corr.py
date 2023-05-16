@@ -54,14 +54,12 @@ geo_dst = load_dsts(geo_dsts, 'DST', 'Events')
 dst = dst.sort_values(by=['time'])
 geo_dst = dst.sort_values(by=['time'])
 
-# Set x and y positions from geo dsts
-dst.X = geo_dst.X.to_numpy()
-dst.Y = geo_dst.Y.to_numpy()
-dst.R = geo_dst.R.to_numpy()
-
-# Make cut in Z and R
-dst = dst[in_range(dst.R, 0, rcut)]
-dst = dst[in_range(dst.Z, 0, 600)]
+# Match events between geo and dst
+good_events = np.intersect1d(dst.event.to_numpy(), geo_dst.event.to_numpy())
+dst_mask_evt = np.isin(zs_dst.event.to_numpy(), good_events)
+geo_mask_evt = np.isin(geo_dst.event.to_numpy(), good_events)
+dst = dst[dst_mask_evt]
+geo_dst = geo_dst[geo_mask_evt]
 
 ### Select events with 1 S1 and 1 S2
 mask_s1 = dst.nS1==1
@@ -71,6 +69,24 @@ nevts_after      = dst[mask_s2].event.nunique()
 nevts_before     = dst[mask_s1].event.nunique()
 eff              = nevts_after / nevts_before
 print('S2 selection efficiency: ', eff*100, '%')
+
+### Select events with 1 S1 and 1 S2
+geo_mask_s1 = geo_dst.nS1==1
+geo_mask_s2 = np.zeros_like(geo_mask_s1)
+geo_mask_s2[geo_mask_s1] = geo_dst[geo_mask_s1].nS2 == 1
+nevts_after      = geo_dst[geo_mask_s2].event.nunique()
+nevts_before     = geo_dst[geo_mask_s1].event.nunique()
+eff              = nevts_after / nevts_before
+print('Geo S2 selection efficiency: ', eff*100, '%')
+
+# Set x and y positions from geo dsts
+dst.X = geo_dst.X.to_numpy()
+dst.Y = geo_dst.Y.to_numpy()
+dst.R = geo_dst.R.to_numpy()
+
+# Make cut in Z and R
+dst = dst[in_range(dst.R, 0, rcut)]
+dst = dst[in_range(dst.Z, 0, 600)]
 
 # Remove expected noise based on signal width
 q_noisesub = dst.S2q.to_numpy() - m*(dst.S2w.to_numpy())

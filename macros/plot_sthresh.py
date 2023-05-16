@@ -70,6 +70,8 @@ def PlotChargeS2Outer(files, outdir):
     plt.savefig(outdir + 'std_s2_v_outer.png')
     plt.close()
 
+    
+
     return
 
 def PlotSthreshS2(files, outdir):

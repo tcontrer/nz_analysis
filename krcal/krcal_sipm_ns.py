@@ -44,19 +44,18 @@ run_all = True
 nfiles = 10
 run_number = 8089 # 0 or negative for MC
 z_range = (0, 550)
-q_range = (0, 2000)
-lt_range = (0,30000)
-rcut = 200
-zcut = 600
+q_range = (0, 1500)
+lt_range = (0, 10000) #(0,30000)
+zcut = 550
 outputdir = '/n/home12/tcontreras/plots/nz_analysis/krcal/ns_'
 output_maps_folder = '/n/holystore01/LABS/guenette_lab/Users/tcontreras/nz_studies/maps/'
-map_file_out     = os.path.join(output_maps_folder, f'map_sipm_{run_number}_z100.h5')
+map_file_out     = os.path.join(output_maps_folder, f'map_sipm_{run_number}_samp1int0_test.h5')
 
-input_folder       = '/n/holystore01/LABS/guenette_lab/Lab/data/NEXT/NEW/data/trigger1/'+str(run_number)+'/kdsts/nothresh/'
+input_folder       = '/n/holystore01/LABS/guenette_lab/Lab/data/NEXT/NEW/data/trigger1/'+str(run_number)+'/samp1_int0/kdsts/'
 geo_folder       = '/n/holystore01/LABS/guenette_lab/Lab/data/NEXT/NEW/data/trigger1/'+str(run_number)+'/kdsts/sthresh/'
 
 if not run_all:
-    input_dsts = [input_folder+'run_'+str(run_number)+'_trigger1_'+str(i)+'_kdst.h5' for i in range(0,nfiles)]
+    input_dsts = [input_folder+'run_'+str(run_number)+'_trigger1_'+str(i)+'_kdsts.h5' for i in range(0,nfiles)]
     geo_dsts = [geo_folder+'run_'+str(run_number)+'_trigger1_'+str(i)+'_kdst.h5' for i in range(0,nfiles)]
 else:
     input_dst_file     = '*.h5'
@@ -72,13 +71,39 @@ geo_dst = geo_dst.sort_values(by=['time'])
 
 # Remove expected noise
 #     m found by fitting to noise given window
-m = 124.
+m = 7.7 * 1e-3 * dst.Nsipm.to_numpy() #124.
 plt.figure(figsize=(6, 16))
 q_noisesub = dst.S2q.to_numpy() - m*(dst.S2w.to_numpy())
 dst.S2q = q_noisesub
 
 print('Geo: ',len(np.unique(geo_dst.event.to_numpy())))
 print('E: ',len(np.unique(dst.event.to_numpy())))
+
+### Select events with 1 S1 and 1 S2
+mask_s1 = dst.nS1==1
+mask_s2 = np.zeros_like(mask_s1)
+mask_s2[mask_s1] = dst[mask_s1].nS2 == 1
+nevts_after      = dst[mask_s2].event.nunique()
+nevts_before     = dst[mask_s1].event.nunique()
+eff              = nevts_after / nevts_before
+print('S2 selection efficiency: ', eff*100, '%')
+
+### Select events with 1 S1 and 1 S2
+geo_mask_s1 = geo_dst.nS1==1
+geo_mask_s2 = np.zeros_like(geo_mask_s1)
+geo_mask_s2[geo_mask_s1] = geo_dst[geo_mask_s1].nS2 == 1
+nevts_after      = geo_dst[geo_mask_s2].event.nunique()
+nevts_before     = geo_dst[geo_mask_s1].event.nunique()
+eff              = nevts_after / nevts_before
+print('Geo S2 selection efficiency: ', eff*100, '%')
+
+# Match events between geo and dst
+good_events = np.intersect1d(np.unique(dst[mask_s2].event.to_numpy()), np.unique(geo_dst[geo_mask_s2].event.to_numpy()))
+dst_mask_evt = np.isin(dst.event.to_numpy(), good_events)
+geo_mask_evt = np.isin(geo_dst.event.to_numpy(), good_events)
+mask_s2 = mask_s2 & dst_mask_evt
+geo_mask_s2 = geo_mask_s2 & geo_mask_evt
+print('good events:', len(good_events))
 
 ### Plot x,y,q distributions before selections
 plt.figure(figsize=(8.5, 7));
@@ -87,15 +112,6 @@ plt.xlabel('X (mm)');
 plt.ylabel('Y (mm)');
 plt.colorbar();
 plt.savefig(outputdir+'xy.png')
-plt.close()
-
-### Plot x,y,q distributions before selections
-plt.figure(figsize=(8.5, 7));
-plt.hist2d(geo_dst.X, geo_dst.Y, 100);
-plt.xlabel('X (mm)');
-plt.ylabel('Y (mm)');
-plt.colorbar();
-plt.savefig(outputdir+'xy_geo.png')
 plt.close()
 
 ### Plot q distributions before selections
@@ -112,10 +128,37 @@ plt.xlabel('S2q [pes]')
 plt.savefig(outputdir+'q_geo.png')
 plt.close()
 
-dst.X = geo_dst.X 
-dst.Y = geo_dst.Y
-dst.R = geo_dst.R
-dst = dst[in_range(dst.R, 0, rcut)]
+# Plot S2 info
+s2d = s2d_from_dst(dst[mask_s1])
+plot_s2histos(dst[mask_s1], s2d, bins=20, emin=q_range[0], emax=q_range[-1], figsize=(10,10))
+plt.savefig(outputdir+'s2.png')
+plt.close()
+
+print('Lens dst/geo:', len(dst.X), len(geo_dst.X))
+print('Lens dst/geo mask_s2:', len(mask_s2), len(geo_mask_s2))
+print('Lens dst/geo match:', np.sum(mask_s2), np.sum(geo_mask_s2))
+
+# Set positions in dst to that of the geo dst
+xs = np.zeros_like(dst.X)
+xs[mask_s2] = geo_dst[geo_mask_s2].X
+dst.X = xs
+
+ys = np.zeros_like(dst.Y)
+ys[mask_s2] = geo_dst[geo_mask_s2].Y
+dst.Y = ys
+
+rs = np.zeros_like(dst.R)
+rs[mask_s2] = geo_dst[geo_mask_s2].R
+dst.R = rs
+
+### Plot x,y,q distributions before selections
+plt.figure(figsize=(8.5, 7))
+plt.hist2d(dst[mask_s2].X, geo_dst[geo_mask_s2].Y, 100);
+plt.xlabel('X (mm)');
+plt.ylabel('Y (mm)');
+plt.colorbar();
+plt.savefig(outputdir+'xy_geo.png')
+plt.close()
 
 if run_number>0:
     plt.figure(figsize=(10, 6));
@@ -126,27 +169,11 @@ if run_number>0:
     plt.savefig(outputdir+'event_rate.png')
     plt.close()
 
-
-### Select events with 1 S1 and 1 S2
-mask_s1 = dst.nS1==1
-mask_s2 = np.zeros_like(mask_s1)
-mask_s2[mask_s1] = dst[mask_s1].nS2 == 1
-nevts_after      = dst[mask_s2].event.nunique()
-nevts_before     = dst[mask_s1].event.nunique()
-eff              = nevts_after / nevts_before
-print('S2 selection efficiency: ', eff*100, '%')
-
-# Plot S2 info
-s2d = s2d_from_dst(dst[mask_s1])
-plot_s2histos(dst, s2d, bins=20, emin=q_range[0], emax=q_range[-1], figsize=(10,10))
-plt.savefig(outputdir+'s2.png')
-plt.close()
-
 ### Band Selection (S2 energy or q selection?)
 x, y, _ = profileX(dst[mask_s2].Z, dst[mask_s2].S2q, xrange=(100,zcut), yrange=q_range)
 e0_seed, lt_seed = expo_seed(x, y)
 lower_e0, upper_e0 = e0_seed-500, e0_seed+500    # play with these values to make the band broader or narrower
-print(e0_seed, lt_seed)
+print('E0 and lt seed:', e0_seed, lt_seed)
 
 plt.figure(figsize=(8, 5.5))
 xx = np.linspace(z_range[0], z_range[1], 100)
@@ -162,6 +189,8 @@ sel_krband = np.zeros_like(mask_s2)
 Zs = dst[mask_s2].Z
 sel_krband[mask_s2] = in_range(dst[mask_s2].S2q, (lower_e0)*np.exp(Zs/lt_seed), (upper_e0)*np.exp(Zs/lt_seed))
 sel_dst = dst[sel_krband]
+
+print('Events in sel_dst:', len(sel_dst), 'before', len(dst[mask_s2]))
 
 # Plot distributions after band selection
 plt.figure(figsize=(16, 6));
@@ -251,14 +280,14 @@ plt.title('q0')
 plt.xlabel('q0 (pes)');
 plt.savefig(outputdir+'maps_q_lt.png')
 plt.close()
-print(regularized_maps.lt.values.flatten())
+print('Lt from map:', regularized_maps.lt.values.flatten())
 maps = add_mapinfo(asm        = regularized_maps     ,
                    xr         = map_params['x_range'],
                    yr         = map_params['y_range'],
                    nx         = number_of_bins       ,
                    ny         = number_of_bins       ,
                    run_number = run_number           )
-print(maps.mapinfo)
+print('Map info:',maps.mapinfo)
 
 # Temporal evolution 
 if run_number>0:

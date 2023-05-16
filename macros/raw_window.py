@@ -19,7 +19,7 @@ from invisible_cities.reco import xy_algorithms as xya
 from invisible_cities.core import system_of_units as units
 from invisible_cities.cities import components as cp
 
-from GetCharge import  GetRawWaveforms, GetWorstSiPMs, GetCalibratedWaveforms
+from GetCharge import  GetRawWaveforms, GetCalibratedWaveforms
 
 s2_bincenter = 802
 outer_bincenter = 1000
@@ -59,11 +59,10 @@ def GetEventWindow(calibrated_sipms, s2_window, outer_window):
 
     return s2_event_energy, outer_event_energy
 
-def GetSiPMs(run_number, calibrated_sipms, worst_sipms, s2_window, outer_window):
+def GetSiPMs(run_number, calibrated_sipms, s2_window, outer_window):
     # Grab SiPM XY positions
     dbsipm   = DataSiPM(dbfile, run_number)
     raw_ids = np.array([i for i in range(1792)])
-    raw_ids = np.delete(raw_ids, worst_sipms)
 
     sipms_s2 = calibrated_sipms[:,:,s2_window[0]:s2_window[1]]
     sipms_outer = calibrated_sipms[:,:,outer_window[0]:outer_window[1]]
@@ -192,8 +191,7 @@ if __name__ == '__main__':
 
     # Get raw waveform, pmap, and kdst info
     events = GetRawWaveforms(run_number, file_name)
-    worst_sipms = GetWorstSiPMs(events)
-    calibrated_sipms = GetCalibratedWaveforms(run_number, events, worst_sipms)
+    calibrated_sipms = GetCalibratedWaveforms(run_number, events)
 
     kdst, kdst_events = GetKDSTEvents(kdst_file)
 
@@ -213,7 +211,7 @@ if __name__ == '__main__':
     #events = [0, 2, 10]
     #for base_evt in events:
     #    evt = kdst_events[base_evt]
-    #    dbsipm, raw_ids, sipms_s2, sipms_outer = GetSiPMs(run_number, calibrated_sipms, worst_sipms, s2_window, outer_window)
+    #    dbsipm, raw_ids, sipms_s2, sipms_outer = GetSiPMs(run_number, calibrated_sipms, s2_window, outer_window)
     #    PlotSameEvent(evt, dbsipm, raw_ids, sipms_s2[base_evt,:], kdst, outputdir)
 
     # Get data with varying window 

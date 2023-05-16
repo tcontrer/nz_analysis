@@ -11,12 +11,12 @@ from invisible_cities.io import dst_io
 from krcal.core.fit_lt_functions import fit_lifetime, fit_lifetime_profile, lt_params_from_fcs
 from krcal.NB_utils.plt_functions import plot_fit_lifetime
 
-window = 15
-q_range = (1000,3500)
-q_s2 = (1000, 3500)
-q_outer = (1000,3500)
+window = 20
+q_range = (0,3000)
+q_s2 = (0, 3000)
+q_outer = (0,3000)
 z_range = np.array((0,600))
-data_dir = '/n/holystore01/LABS/guenette_lab/Users/tcontreras/nz_studies/data/run8089_window_14042023/w'+str(window)+'/'
+data_dir = '/n/holystore01/LABS/guenette_lab/Users/tcontreras/nz_studies/data/window_22032023/w'+str(window)+'/'
 outputdir = '/n/home12/tcontreras/plots/nz_analysis/'
 
 def GetAllEvents(files):
@@ -106,11 +106,12 @@ def PlotNoiseSub(zs, s2_energies, outer_energies):
 
 files = glob.glob(data_dir+'*.txt')
 s2, outer, z, window = GetAllEvents(files)
+print('Num events = ',len(s2))
 
-Plot_ZvQ('s2', z, s2, window, outputdir, q_s2)
-Plot_ZvQ('outer', z, outer, window, outputdir, q_outer)
-Plot_ZvQ_Comparison(z, s2, outer, window, outputdir)
-PlotNoiseSub(z, s2, outer)
+#Plot_ZvQ('s2', z, s2, window, outputdir, q_s2)
+#Plot_ZvQ('outer', z, outer, window, outputdir, q_outer)
+#Plot_ZvQ_Comparison(z, s2, outer, window, outputdir)
+#PlotNoiseSub(z, s2, outer)
 """
 data_dir = '/n/holystore01/LABS/guenette_lab/Users/tcontreras/nz_studies/data/window_22032023/w'+str(window)+'/'
 nzs_files = glob.glob(data_dir+'*.txt')

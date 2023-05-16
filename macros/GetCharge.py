@@ -39,41 +39,15 @@ def GetRawWaveforms(run_number, file_name):
     
     return events
 
-def GetWorstSiPMs(events, mean_thresh=70, std_thresh=70):
-    
-    # Find suspicious SiPMs
-    bad_sipms = []
-    for event in range(0,len(events)):
-        for sipm in range(len(events[event])):
-            wf = events[event][sipm]
-            wf = wf[wf>0] # Necessary for the case of zero suppressed data
-            mean = np.mean(wf)
-            std = np.std(wf)
-            if mean > mean_thresh or std > std_thresh:
-                bad_sipms.append(sipm)
-                
-    worst_sipms = []
-    for sipm in np.unique(bad_sipms):
-        count = np.count_nonzero(bad_sipms == sipm)
-        #print('SiPM '+str(sipm)+' suspicious in '+str(count)+' events')
-        if count == len(events):
-            worst_sipms.append(sipm)
-    
-    return worst_sipms
-
-def GetCalibratedWaveforms(run_number, events, worst_sipms):
+def GetCalibratedWaveforms(run_number, events):
 
     # Calibrate data
     cal_sipms = cp.calibrate_sipms(detector_db, run_number, 0)
     calibrated_sipms = np.array([cal_sipms(wfs) for wfs in events])
 
-    # Get rid of worst sipms
-    calibrated_bad_sipms = calibrated_sipms
-    calibrated_sipms = np.delete(calibrated_sipms, worst_sipms, axis=1)
-
     return calibrated_sipms
 
-def ApplyCutsAndSaveDcut(calibrated_sipms, worst_sipms, outfile, d_cuts, sipm_thresholds):
+def ApplyCutsAndSaveDcut(calibrated_sipms, outfile, d_cuts, sipm_thresholds):
 
     # Get SiPMs in S2 window
     sipms_s2 = calibrated_sipms[:,:,s2_window[0]:s2_window[1]]
@@ -90,7 +64,6 @@ def ApplyCutsAndSaveDcut(calibrated_sipms, worst_sipms, outfile, d_cuts, sipm_th
     sipm_xs    = datasipm.X.values
     sipm_ys    = datasipm.Y.values
     sipm_xys   = np.stack((sipm_xs, sipm_ys), axis=1)
-    sipm_xys = np.delete(sipm_xys, worst_sipms, axis=0) # remove bad sipms
 
     # Make cut on R position of events
     rs = np.sqrt(sipm_xys[max_sipms][:,0]**2 + sipm_xys[max_sipms][:,1]**2)
@@ -125,7 +98,7 @@ def ApplyCutsAndSaveDcut(calibrated_sipms, worst_sipms, outfile, d_cuts, sipm_th
 
     return
 
-def ApplyCutsAndSave(calibrated_sipms, worst_sipms, outfile, sipm_thresholds):
+def ApplyCutsAndSave(calibrated_sipms, outfile, sipm_thresholds):
 
     # Get SiPMs in S2 window
     sipms_s2 = calibrated_sipms[:,:,s2_window[0]:s2_window[1]]
@@ -142,11 +115,10 @@ def ApplyCutsAndSave(calibrated_sipms, worst_sipms, outfile, sipm_thresholds):
     sipm_xs    = datasipm.X.values
     sipm_ys    = datasipm.Y.values
     sipm_xys   = np.stack((sipm_xs, sipm_ys), axis=1)
-    sipm_xys = np.delete(sipm_xys, worst_sipms, axis=0) # remove bad sipms
 
     # Make cut on R position of events
     rs = np.sqrt(sipm_xys[max_sipms][:,0]**2 + sipm_xys[max_sipms][:,1]**2)
-    rcut_events = np.argwhere(rs > rcut)[:,0]
+    rcut_events = np.argwhere(rs < rcut)[:,0]
     max_sipms = max_sipms[rcut_events]
     max_sipms_outer = max_sipms_outer[rcut_events]
     sipms_s2 = sipms_s2[rcut_events,:,:]
@@ -174,7 +146,7 @@ def ApplyCutsAndSave(calibrated_sipms, worst_sipms, outfile, sipm_thresholds):
 
     return
 
-def ApplyCutsS2AndSave(calibrated_sipms, worst_sipms, outfile, sipm_thresholds, sipm_thresholds_s2):
+def ApplyCutsS2AndSave(calibrated_sipms, outfile, sipm_thresholds, sipm_thresholds_s2):
 
     # Get SiPMs in S2 window
     sipms_s2 = calibrated_sipms[:,:,s2_window[0]:s2_window[1]]
@@ -191,7 +163,6 @@ def ApplyCutsS2AndSave(calibrated_sipms, worst_sipms, outfile, sipm_thresholds, 
     sipm_xs    = datasipm.X.values
     sipm_ys    = datasipm.Y.values
     sipm_xys   = np.stack((sipm_xs, sipm_ys), axis=1)
-    sipm_xys = np.delete(sipm_xys, worst_sipms, axis=0) # remove bad sipms
 
     # Make cut on R position of events
     rs = np.sqrt(sipm_xys[max_sipms][:,0]**2 + sipm_xys[max_sipms][:,1]**2)
@@ -265,11 +236,10 @@ if __name__ == '__main__':
     sipm_thresholds = [int(i) for i in sipm_thresholds.split(',')]
 
     events = GetRawWaveforms(run_number, file_name)
-    worst_sipms = GetWorstSiPMs(events)
-    calibrated_sipms = GetCalibratedWaveforms(run_number, events, worst_sipms)
+    calibrated_sipms = GetCalibratedWaveforms(run_number, events)
 
-    #ApplyCutsAndSave(calibrated_sipms, worst_sipms, outfile, sipm_thresholds)
-    #ApplyCutsAndSaveDcut(calibrated_sipms, worst_sipms, outfile, d_cuts, sipm_thresholds)
+    #ApplyCutsAndSave(calibrated_sipms, outfile, sipm_thresholds)
+    #ApplyCutsAndSaveDcut(calibrated_sipms, outfile, d_cuts, sipm_thresholds)
 
     sipm_thresholds_s2 = sipm_thresholds
-    ApplyCutsS2AndSave(calibrated_sipms, worst_sipms, outfile, sipm_thresholds, sipm_thresholds_s2)
+    ApplyCutsS2AndSave(calibrated_sipms, outfile, sipm_thresholds, sipm_thresholds_s2)

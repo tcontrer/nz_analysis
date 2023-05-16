@@ -48,14 +48,14 @@ run_number = 8088 # 0 or negative for MC
 rcut = 100
 zcut = 600
 z_range = (0, 600)
-q_range = (400, 2000)
+q_range = (0, 1500)
 outputdir = '/n/home12/tcontreras/plots/nz_analysis/krcal/'
 maps_dir = '/n/holystore01/LABS/guenette_lab/Users/tcontreras/nz_studies/maps/'
-sipm_map = 'map_sipm_8089_z100.h5'
+sipm_map = 'map_sipm_8089_samp1int0_test.h5'
 pmt_map = 'map_pmt_8087_test.h5'
 this_map = read_maps(maps_dir+sipm_map)
 
-input_folder       = '/n/holystore01/LABS/guenette_lab/Lab/data/NEXT/NEW/data/trigger1/8088/kdsts/nothresh/'
+input_folder       = '/n/holystore01/LABS/guenette_lab/Lab/data/NEXT/NEW/data/trigger1/8088/samp_int_thresh/samp1_int0/kdsts/'
 input_dst_file     = '*.h5'
 input_dsts         = glob.glob(input_folder + input_dst_file)
 
@@ -77,7 +77,7 @@ print('S2 selection efficiency: ', eff*100, '%')
 # Remove expected noise
 #     m found by fitting to noise given window
 print('S2q before = ', np.mean(dst.S2q))
-m = 124.
+m = 7.7 * 1e-3 * dst.Nsipm.to_numpy() #124.
 q_noisesub = dst.S2q.to_numpy() - m*(dst.S2w.to_numpy())
 dst.S2q = q_noisesub
 print('S2q after = ', np.mean(dst.S2q))

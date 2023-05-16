@@ -19,6 +19,7 @@ from invisible_cities.core                 import fit_functions as fitf
 from invisible_cities.evm  .ic_containers import FitFunction
 from   invisible_cities.core.core_functions    import in_range
 from   invisible_cities.core .stat_functions import poisson_sigma
+from invisible_cities.core.histo_functions      import profile1d
 
 Measurement = namedtuple('Measurement', 'value uncertainty')
 Number = TypeVar('Number', None, int, float)
@@ -379,3 +380,23 @@ def plot_fit_energy2(fc : FitCollection, data, plot_range):
         ax.add_artist(anchored_text)
     else:
         warnings.warn(f' fit did not succeed, cannot plot ', UserWarning)
+
+def EvZ_profile(x         : np.array,
+       y         : np.array,
+       nbins_x   : int,
+       nbins_y   : int,
+       range_x   : Tuple[float],
+       range_y   : Tuple[float],
+       profile   : bool   = True):
+
+    xbins  = np.linspace(*range_x, nbins_x + 1)
+    ybins  = np.linspace(*range_y, nbins_y + 1)
+
+    nevt, *_  = plt.hist2d(x, y, (xbins, ybins))
+    plt.colorbar().set_label("Number of events")
+
+    if profile:
+        x, y, yu     = profile1d(x, y, nbins_x, range_x)
+        plt.errorbar(x, y, yu, np.diff(x)[0]/2, fmt="kp", ms=7, lw=3)
+
+    return nevt
