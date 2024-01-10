@@ -8,7 +8,8 @@ def GetWidth(pmap_file, kdst_file, outfile):
 
     ### Load kdst files
     dst = load_dsts([kdst_file], 'DST', 'Events')
-
+    print(kdst_file)
+    print(dst)
     ### Select events with 1 S1 and 1 S2
     mask_s1 = dst.nS1==1
     mask_s2 = np.zeros_like(mask_s1)

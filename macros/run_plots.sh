@@ -11,4 +11,5 @@
 source /n/holystore01/LABS/guenette_lab/Lab/data/NEXT/FLEX/mc/eres_22072022/IC_setup.sh
 source /n/holystore01/LABS/guenette_lab/Users/tcontreras/ICAROS/icaro_setup.sh
 
-python  /n/holystore01/LABS/guenette_lab/Users/tcontreras/nz_studies/nz_analysis/macros/test_noisesub.py 
+python  /n/holystore01/LABS/guenette_lab/Users/tcontreras/nz_studies/nz_analysis/macros/eres_dcuts.py
+#python  /n/holystore01/LABS/guenette_lab/Users/tcontreras/nz_studies/nz_analysis/macros/plot_pmapnoise.py 0 /n/holystore01/LABS/guenette_lab/Users/tcontreras/nz_studies/data/test/samp0_int0/

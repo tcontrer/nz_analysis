@@ -9,6 +9,7 @@ import os
 import logging
 import warnings
 import sys
+import json
 
 import numpy  as np
 import glob
@@ -55,7 +56,8 @@ file_type = 'kdsts_w'
 zero_suppressed = 0
 run_number = 8088 # 0 or negative for MC
 outputdir = '/n/home12/tcontreras/plots/nz_analysis/sampint/'
-prod_dir = '/n/holystore01/LABS/guenette_lab/Users/tcontreras/nz_studies/data/data_15052023/'
+prod_dir = '/n/holystore01/LABS/guenette_lab/Users/tcontreras/nz_studies/data/data_17052023/'
+noise_file = '/n/holystore01/LABS/guenette_lab/Users/tcontreras/nz_studies/data/noise_rates_by_threshold.txt'
 rcut = 100
 zcut = 550
 zmin = 0
@@ -68,10 +70,14 @@ thresholds = [(0,0), (0,2), (0,4), (0,6), (0,8), (0,10), (0,12), (0,14), (0,16),
              (3,0), (3,2), (3,4), (3,6), (3,8), (3,10), (3,12), (3,14), (3,16), (3,18), (3,20),
              (4,0), (4,2), (4,4), (4,6), (4,8), (4,10), (4,12), (4,14), (4,16), (4,18), (4,20)] # 55 total
 old_sets = [(1,4), (2,2)]
+thresholds = [(0,0), (0,2), (0,4), (0,6), (1,0), (1,2), (1,4), (1,6), (2,0), (2,2), (2,4), (2,6), (3,0), (3,2), (3,4), (3,6)]
+q_ranges = [(0,3500), (0,3500), (0,3500), (0,3500), (0,2200), (0,1600), 
+    (0,1000), (0,1000), (0,1000), (0,1000), (0,1000), (0,1000), (0,1000), (0,1000), (0,1000), (0,1000)]
+q_ranges_nsub = [(600,2200), (600,2200), (600,2200), (600,2200), (600,1300), (600,1200), 
+    (0,1000), (0,1000), (0,1000), (0,1000), (0,1000), (0,1000), (0,1000), (0,1000), (0,1000), (0,1000)]
 
 maps_dir = '/n/holystore01/LABS/guenette_lab/Users/tcontreras/nz_studies/maps/'
-sipm_map = 'map_sipm_8089_samp1int0_test.h5'
-this_map = read_maps(maps_dir+sipm_map)
+geo_map_name = maps_dir + 'map_sipm_geo_8089.h5'
 
 def GetData(input_folder, file_end, w_dir):
 
@@ -152,7 +158,9 @@ def SelDst(name, dst, mask_s2, q_range):
     """
 
     ### Band Selection: estimates limetime (for Z>100) and makes energy bands
-    x, y, _ = profileX(dst[mask_s2].Z, dst[mask_s2].S2q, xrange=(100,zcut), yrange=q_range)
+    this_dst = dst[mask_s2]
+    this_dst = this_dst[in_range(this_dst.Z, 100, zcut)]
+    x, y, _ = profileX(this_dst.Z, this_dst.S2q, xrange=(100,zcut), yrange=q_range)
     e0_seed, lt_seed = expo_seed(x, y)
     lower_e0, upper_e0 = e0_seed-500, e0_seed+500    # play with these values to make the band broader or narrower
     print('E0 and lt seed:', e0_seed, lt_seed)
@@ -162,7 +170,7 @@ def SelDst(name, dst, mask_s2, q_range):
     plt.hist2d(dst[mask_s2].Z, dst[mask_s2].S2q, 50, [z_range, q_range], cmin=1)
     plt.plot(xx, (lower_e0)*np.exp(xx/lt_seed), color='red', linewidth=1.7)
     plt.plot(xx, (upper_e0)*np.exp(xx/lt_seed), color='red', linewidth=1.7)
-    plt.xlabel(r'Z ($\mu$s)')
+    plt.xlabel(r'Z [mm]')
     plt.ylabel('S2q (pes)')
     plt.savefig(outputdir+name + '_band.png')
     plt.close()
@@ -202,6 +210,23 @@ def SubNoise_sipmw(dst, m):
 
     q_noisesub = dst.S2q.to_numpy() - m*(dst.S2w_sipm.to_numpy())
     return q_noisesub
+
+def PlotNoiseSub(SubNoise, dst, m, q_range):
+
+    q_noisesub = SubNoise(dst, m)
+
+    # Plot Z distribution between the two
+    fig = plt.figure(figsize=(10,15))
+    plt.subplot(2, 1, 1)
+    plt.hist2d(dst.Z, dst.S2q, bins=[50,50], range=[z_range, q_range])
+    plt.xlabel('Z [mm]')
+    plt.ylabel('S2q [pes]')
+    plt.subplot(2, 1, 2)
+    plt.hist2d(dst.Z, q_noisesub, bins=[50,50], range=[z_range, q_range])
+    plt.xlabel('Z [mm]')
+    plt.ylabel('S2q - noise [pes]')
+    plt.savefig(outputdir + name +'_new_noisesub.png')
+    plt.close()
 
 def CompareNoiseSub(dst, q_range):
 
@@ -255,26 +280,6 @@ def PlotWidthComparison(dst, mask_s2, m, q_range):
     plt.savefig(outputdir + name +'widths_v_z.png')
     plt.close()
 
-    q_s2wnoisesub = dst.S2q.to_numpy() - m*(dst.S2w.to_numpy())
-    q_sipmwidth_noisesub = dst.S2q.to_numpy()  - m*(dst.S2w_sipm.to_numpy())
-
-    # Plot Z distribution between the two
-    fig = plt.figure(figsize=(10,15))
-    plt.subplot(3, 1, 1)
-    plt.hist2d(dst[mask_s2].Z, dst[mask_s2].S2q, bins=[50,50], range=[z_range, q_range])
-    plt.xlabel('Z [mm]')
-    plt.ylabel('S2q [pes]')
-    plt.subplot(3, 1, 2)
-    plt.hist2d(dst[mask_s2].Z, q_s2wnoisesub[mask_s2], bins=[50,50], range=[z_range, q_range])
-    plt.xlabel('Z [mm]')
-    plt.ylabel('S2q - m*S2w [pes]')
-    plt.subplot(3, 1, 3)
-    plt.hist2d(dst[mask_s2].Z, q_sipmwidth_noisesub[mask_s2], bins=[50,50], range=[z_range, q_range])
-    plt.xlabel('Z [mm]')
-    plt.ylabel('S2q - m * sipm_width [pes]')
-    plt.savefig(outputdir + name +'_new_noisesub.png')
-    plt.close()
-
     return
 
 def PlotGeoCorrection(dst):
@@ -289,10 +294,31 @@ def PlotGeoCorrection(dst):
     plt.close()
     return
 
-def PlotCorrection(dst):
+def PlotCorrection(dst, geom_corr, correction, q_range):
 
     corr_geo = geom_corr(dst.X, dst.Y)
     corr_tot = correction(dst.X, dst.Y, dst.Z, dst.time)
+
+    # Plot Z distribution between the two
+    q_range = (dst.S2q.min(), dst.S2q.max())
+    fig = plt.figure(figsize=(10,15))
+    bins=[50,100]
+    plt.subplot(3, 1, 1)
+    plt.hist2d(dst.Z, dst.S2q, bins=bins, range=[z_range, q_range])
+    plt.ylabel('S2q [pes]')
+    plt.title('Noise Subtracted Energy')
+    plt.subplot(3, 1, 2)
+    plt.hist2d(dst.Z, dst.S2q*corr_geo, bins=bins, range=[z_range, q_range])
+    plt.ylabel('S2q [pes]')
+    plt.title('Geo Correction')
+    plt.subplot(3, 1, 3)
+    plt.hist2d(dst.Z, dst.S2q*corr_tot, bins=bins, range=[z_range, q_range])
+    plt.xlabel('Z [mm]')
+    plt.ylabel('S2q [pes]')
+    plt.title('Geo + Lifetime Correction')
+    plt.savefig(outputdir + name +'_q_v_z_corr.png')
+    plt.close()
+
     plt.hist(dst.S2q, bins = 100, alpha=0.5)
     plt.hist(dst.S2q*corr_geo, bins = 100, label='Geo Correction', alpha=0.5)
     plt.hist(dst.S2q*corr_tot, bins = 100, label='Geo+LT Correction', alpha=0.5)
@@ -303,41 +329,53 @@ def PlotCorrection(dst):
     plt.close()
     return
 
-def PlotLifetime(name, dst, q_range):
+def PlotLifetime(name, dst, geom_corr, q_range):
 
-    # Fitting for lifetime
+    corr_geo = geom_corr(dst.X, dst.Y)
+    #corr_geo = np.ones_like(corr_geo)
+
+    # Fitting for lifetime 
     fig = plt.figure(figsize=(10,14))
     plt.subplot(2, 1, 1)
-    h2(dst.Z, dst.S2q, 50, 50, z_range, q_range, profile=True)
+    h2(dst.Z, dst.S2q*corr_geo, 50, 50, z_range, q_range, profile=True)
+    plt.ylabel('Q [pes]')
+    plt.xlabel('Z [mm]')
+    plt.title(name+' profile')
 
     plt.subplot(2, 1, 2)
-    plt.hist2d(dst.Z, dst.S2q, bins=[50,50], range=[z_range, q_range])
+    plt.hist2d(dst.Z, dst.S2q*corr_geo, bins=[50,50], range=[z_range, q_range])
     plt.colorbar().set_label("Number of events")
     zs1 = np.arange(10,100,6)
     zs2 = np.arange(100,550,6)
 
-    fc = fit_lifetime(dst.Z, dst.S2q, 50, 50, (0,100), q_range)
+    fc = fit_lifetime(dst.Z, dst.S2q*corr_geo, 50, 50, (0,100), q_range)
     f = fc.fp.f
     par  = fc.fr.par
     err  = fc.fr.err
     plt.plot(zs1, f(zs1), "r--", lw=3, 
-            label=f'Z<100: Ez0 ={par[0]:1.0f}$\pm${err[0]:1.1f} pes,   LT={par[1]*1e-3:1.1f}$\pm${err[1]*1e-3:1.1f} $\mu$s')
+            label=f'Z<100: Ez0 ={par[0]:1.0f}$\pm${err[0]:1.1f} pes,   LT={par[1]*1e-3:1.2f}$\pm${err[1]*1e-3:1.2f} ms')
+    print(f'Z<100: Ez0 ={par[0]:1.0f}$\pm${err[0]:1.1f} pes,   LT={par[1]*1e-3:1.2f}$\pm${err[1]*1e-3:1.2f} ms')
 
-    fc = fit_lifetime(dst.Z, dst.S2q, 50, 50, (100,zcut), q_range)
+    fc = fit_lifetime(dst.Z, dst.S2q*corr_geo, 50, 50, (100,zcut), q_range)
     f = fc.fp.f
     par  = fc.fr.par
     err  = fc.fr.err
     plt.plot(zs2, f(zs2), "k", linestyle='dotted', lw=3,
-            label=f'Z>100: Ez0 ={par[0]:1.0f}$\pm${err[0]:1.1f} pes,   LT={par[1]*1e-3:1.1f}$\pm${err[1]*1e-3:1.1f} $\mu$s')
+            label=f'Z>100: Ez0 ={par[0]:1.0f}$\pm${err[0]:1.1f} pes,   LT={par[1]*1e-3:1.2f}$\pm${err[1]*1e-3:1.2f} ms')
 
     plt.legend()
     plt.ylabel('Q [pes]')
     plt.xlabel('Z [mm]')
-    plt.title(name)
+    plt.title(name + ' lt fits')
     plt.savefig(outputdir+name+'_lt_test.png')
     plt.close()
+    print(f'Z>100: Ez0 ={par[0]:1.0f}$\pm${err[0]:1.1f} pes,   LT={par[1]*1e-3:1.2f}$\pm${err[1]*1e-3:1.2f} ms')
+    return
 
-def SaveDistr(prod_dir, dst, corr_geo, corr_tot):
+def SaveDistr(prod_dir, dst, geom_corr, correction):
+
+    corr_geo = geom_corr(dst.X, dst.Y)
+    corr_tot = correction(dst.X, dst.Y, dst.Z, dst.time)
 
     save_file = prod_dir + name + extra_str + '_nsub.out'
     np.savetxt(save_file, sel_dst.S2q, delimiter=',')
@@ -345,18 +383,21 @@ def SaveDistr(prod_dir, dst, corr_geo, corr_tot):
     save_file = prod_dir + name + extra_str + '_geo.out'
     np.savetxt(save_file, sel_dst.S2q*corr_geo, delimiter=',')
 
+    this_dst = sel_dst[in_range(sel_dst.Z, 100, 250)]
+    this_corr_geo = geom_corr(this_dst.X, this_dst.Y)
+    save_file = prod_dir + name + extra_str + '_geo_zslice.out'
+    np.savetxt(save_file, this_dst.S2q*this_corr_geo, delimiter=',')
+
     save_file = prod_dir + name + extra_str + '_lt.out'
     np.savetxt(save_file, sel_dst.S2q*corr_tot, delimiter=',')
+
+    return
 
 if __name__ == '__main__':
 
     thresh_num = int(sys.argv[1])
     thresh = thresholds[thresh_num]
 
-    geom_corr = e0_xy_correction(this_map)
-    correction = apply_all_correction_single_maps(this_map,this_map,apply_temp = False)
-
-    q_range = (0,1200)
     # Unfortunetly changed the name of the files
     # only for some of the data sets
     if thresh in old_sets and file_type=='kdsts':
@@ -377,45 +418,48 @@ if __name__ == '__main__':
         input_folder += 'samp_int_thresh/' 
     input_folder += name + '/'
     dst, geo_dst = GetData(input_folder, file_end, w_dir)
-    dst, mask_s2 = CorrectAndMask(dst, geo_dst)
 
+    ######### Subtract Noise
     #PlotRawDistr(name, dst)
-    #CompareNoiseSub(dst, q_range)
-    #m_var = 68.6 * 1e-3 * dst.Nsipm.to_numpy()
-    m_var = 7.7 * 1e-3 * dst.Nsipm.to_numpy()
-    PlotWidthComparison(dst, mask_s2, m=m_var, q_range=q_range)
+    #CompareNoiseSub(dst, q_ranges[thresh_num])
+    #m_var = 124. #68.6 * 1e-3 * dst.Nsipm.to_numpy()
+    #m_var = 7.7 * 1e-3 * dst.Nsipm.to_numpy()
+    with open(noise_file, 'r') as f:
+        noise_rates_str = json.load(f)
+    noise_rates = {}
+    for key in noise_rates_str.keys():
+        new_key = tuple(map(int, key[1:-1].split(', ')))
+        noise_rates[new_key] = np.array(noise_rates_str[key])
+    m_var = np.mean(noise_rates[(thresh[0], 0)]) * 1e-3 * dst.Nsipm.to_numpy()
 
-    save_file = prod_dir + name + '.out'
+    save_file = prod_dir + name + '_wn.out'
     np.savetxt(save_file, dst.S2q, delimiter=',')
-
-    dst.S2q = SubNoise_sipmw(dst, m=m_var)
+    nsub_dst = dst.copy()
+    nsub_dst.S2q = SubNoise_sipmw(nsub_dst, m=m_var)
     save_file = prod_dir + name + '_nsub_nocuts.out'
-    np.savetxt(save_file, dst.S2q, delimiter=',')
+    np.savetxt(save_file, nsub_dst.S2q, delimiter=',')
 
-    sel_dst = SelDst(name, dst, mask_s2, q_range)
-    PlotCorrection(sel_dst)
-    #print('Events after selection',sel_dst.event.to_numpy())
-    #print('X after selection', sel_dst.X.to_numpy())
-    #print('Y after selection', sel_dst.Y.to_numpy())
-    corr_geo = geom_corr(sel_dst.X, sel_dst.Y)
-    corr_tot = correction(sel_dst.X, sel_dst.Y, sel_dst.Z, sel_dst.time)
-    SaveDistr(prod_dir, sel_dst, corr_geo, corr_tot)
+    ##### Get geometric info and select 1 S1 and 1 S2
+    nsub_dst, mask_s2 = CorrectAndMask(nsub_dst, geo_dst)
+    dst, mask_s2 = CorrectAndMask(dst, geo_dst)
+    PlotNoiseSub(SubNoise_sipmw, dst[mask_s2], m_var[mask_s2], q_ranges[thresh_num])
+    #PlotWidthComparison(dst, mask_s2, m=m_var, q_range=q_ranges[thresh_num])
+
+    ##### Select an energy band 
+    sel_dst = SelDst(name, nsub_dst, mask_s2, q_ranges[thresh_num])
+
+    ##### Grab corrections from map
+    this_map = read_maps(maps_dir+f'map_sipm_8089_{name}_TEST.h5')
+    geo_map = this_map #read_maps(geo_map_name)
+    geom_corr = e0_xy_correction(geo_map)
+    correction = apply_all_correction_single_maps(geo_map,this_map,apply_temp = False)
+    PlotCorrection(sel_dst, geom_corr, correction, q_ranges[thresh_num])
+
+    #corr_geo = np.ones_like(corr_geo)
+    PlotLifetime(name, sel_dst, geom_corr, q_ranges_nsub[thresh_num])
+    SaveDistr(prod_dir, sel_dst, geom_corr, correction)
     #PlotRawDistr(name, dst)
-    #save_file = prod_dir + name + '_lt.out'
-    #np.savetxt(save_file, sel_dst.S2q*corr_tot, delimiter=',')
 
-    #dst_s2w = dst.copy()
-    #name_s2w = name + '_s2w'
-    #dst_s2w.S2q = SubNoise_s2w(dst_s2w, m=m_var)
-    #dst_sipmw = dst.copy()
-    #name_sipmw = name + '_sipmw'
-    #dst_sipmw.S2q = SubNoise_sipmw(dst_sipmw, m=m_var)
+    #np.savetxt('/n/holystore01/LABS/guenette_lab/Users/tcontreras/nz_studies/data/good_events.txt', sel_dst.event.to_numpy(), fmt='%d')
 
-    #sel_dst_s2w = SelDst(name_s2w, dst_s2w, mask_s2, q_range)
-    #sel_dst_sipmw = SelDst(name_sipmw, dst_sipmw, mask_s2, q_range)
-    #PlotGeoCorrection(dsts2w)
-
-    #q_range = (400,1200)
-    #PlotLifetime(name, sel_dst, q_range)
-    #PlotLifetime(name_sipmw, sel_dst_sipmw, q_range)
         

@@ -40,12 +40,12 @@ from invisible_cities.core.core_functions     import in_range
 from invisible_cities.core.core_functions     import shift_to_bin_centers
 from invisible_cities.core.fit_functions      import profileX
 
-run_number = 8087 # 0 or negative for MC
-outputdir = '/n/home12/tcontreras/plots/nz_analysis/krcal/zs_'
+run_number = 8089 # 0 or negative for MC
+outputdir = '/n/home12/tcontreras/plots/nz_analysis/krcal/'
 output_maps_folder = '/n/holystore01/LABS/guenette_lab/Users/tcontreras/nz_studies/maps/'
-map_file_out     = os.path.join(output_maps_folder, f'map_sipm_{run_number}.h5')
+map_file_out     = os.path.join(output_maps_folder, f'map_sipm_geo_{run_number}.h5')
 
-input_folder       = '/n/holystore01/LABS/guenette_lab/Lab/data/NEXT/NEW/data/trigger1/'+str(run_number)+'/'
+input_folder       = '/n/holystore01/LABS/guenette_lab/Lab/data/NEXT/NEW/data/trigger1/'+str(run_number)+'/kdsts/sthresh/'
 input_dst_file     = '*.h5'
 input_dsts         = glob.glob(input_folder + input_dst_file)
 rcut = 300

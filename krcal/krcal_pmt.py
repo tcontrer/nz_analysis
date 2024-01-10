@@ -1,6 +1,6 @@
 """
 This code is meant to test various aspects of the kr calibration,
-found in ICAROS, on run 8087 to be used in the non-zero suppressed
+found in ICAROS, on run to be used in the non-zero suppressed
 data analysis (run 8088).
 """
 import os
@@ -40,12 +40,12 @@ from invisible_cities.core.core_functions     import in_range
 from invisible_cities.core.core_functions     import shift_to_bin_centers
 from invisible_cities.core.fit_functions      import profileX
 
-run_number = 8087 # 0 or negative for MC
-outputdir = '/n/home12/tcontreras/plots/nz_analysis/krcal/'
+run_number = 8089 # 0 or negative for MC
+outputdir = '/n/home12/tcontreras/plots/nz_analysis/pmts/krcal/'
 output_maps_folder = '/n/holystore01/LABS/guenette_lab/Users/tcontreras/nz_analysis/krcal/maps/'
-map_file_out     = os.path.join(output_maps_folder, f'map_pmt_{run_number}_test.h5')
+map_file_out     = os.path.join(output_maps_folder, f'map_pmt_{run_number}.h5')
 
-input_folder       = '/n/holystore01/LABS/guenette_lab/Lab/data/NEXT/NEW/data/trigger1/8087/'
+input_folder       = f'/n/holystore01/LABS/guenette_lab/Lab/data/NEXT/NEW/data/trigger1/{run_number}/kdsts/sthresh/'
 input_dst_file     = '*.h5'
 input_dsts         = glob.glob(input_folder + input_dst_file)
 
@@ -68,7 +68,7 @@ z_range_plot = (0, 600)
 e_range_plot = (0, 18000)
 x, y, _ = profileX(dst[mask_s2].Z, dst[mask_s2].S2e, yrange=e_range_plot)
 e0_seed, lt_seed = expo_seed(x, y)
-lower_e0, upper_e0 = e0_seed-4000, e0_seed+2000    # play with these values to make the band broader or narrower
+lower_e0, upper_e0 = e0_seed-4000, e0_seed+4000    # play with these values to make the band broader or narrower
 
 plt.figure(figsize=(8, 5.5))
 xx = np.linspace(z_range_plot[0], z_range_plot[1], 100)
@@ -180,6 +180,40 @@ maps = add_mapinfo(asm        = regularized_maps     ,
                    ny         = number_of_bins       ,
                    run_number = run_number           )
 print(maps.mapinfo)
+
+# Extra plotting stuff (labels + Chi2)
+fig = plt.figure(figsize=(15,10))
+ax = plt.subplot(2,3,1)
+img = ax.imshow(regularized_maps.e0.fillna(0), vmin=6000, vmax=15000)
+ax.invert_yaxis()
+plt.colorbar(img, ax=ax, label='$E_0$ [pes]')
+
+ax = plt.subplot(2,3,2)
+img = ax.imshow(regularized_maps.e0u.fillna(0), vmin=0, vmax=.03)
+ax.invert_yaxis()
+plt.colorbar(img, ax=ax, label=f'$100 * \delta E_0$ / $E_0$')
+
+ax = plt.subplot(2,3,3)
+img = ax.imshow(maps.chi2.fillna(0), vmin=0, vmax=10)
+ax.invert_yaxis()
+plt.colorbar(img, ax=ax, label=f'$E_0$ fit $\chi^2$')
+
+ax = plt.subplot(2,3,4)
+img = ax.imshow(regularized_maps.lt.fillna(0), vmin=0, vmax=20000)
+ax.invert_yaxis()
+plt.colorbar(img, ax=ax, label='Lifetime [ms]')
+
+ax = plt.subplot(2,3,5)
+img = ax.imshow(regularized_maps.ltu.fillna(0), vmin=0, vmax=1)
+ax.invert_yaxis()
+plt.colorbar(img, ax=ax, label='$100 * \delta$Lifetime / Lifetime')
+
+ax = plt.subplot(2,3,6)
+img = ax.imshow(maps.chi2.fillna(0), vmin=0, vmax=10)
+ax.invert_yaxis()
+plt.colorbar(img, ax=ax, label=f'Lifetime fit $\chi^2$')
+plt.savefig(outputdir+'maps_pmt_labels.png')
+plt.close()
 
 # Temporal evolution 
 if run_number>0:

@@ -10,10 +10,10 @@
 
 source /n/holystore01/LABS/guenette_lab/Lab/data/NEXT/FLEX/mc/eres_22072022/IC_setup.sh
 
-RUNNUM=8088
+RUNNUM=0
 TRIGGER=trigger1
-KDST=/n/holystore01/LABS/guenette_lab/Lab/data/NEXT/NEW/data/trigger1/8088/kdsts/nothresh/run_8088_trigger1_${SLURM_ARRAY_TASK_ID}_kdst.h5
-PMAP=/n/holystore01/LABS/guenette_lab/Lab/data/NEXT/NEW/data/trigger1/8088/pmaps/nothresh/run_8088_trigger1_${SLURM_ARRAY_TASK_ID}_pmaps.h5
-OUTFILE=/n/holystore01/LABS/guenette_lab/Users/tcontreras/nz_studies/production/test_dir/run_8088_trigger1_${SLURM_ARRAY_TASK_ID}_kdst.h5
+KDST=/n/holystore01/LABS/guenette_lab/Lab/data/NEXT/NEW/data/mc/kr83m/kdsts/sthresh/hdf5/new.kr83m.${SLURM_ARRAY_TASK_ID}.kdst.h5
+PMAP=/n/holystore01/LABS/guenette_lab/Lab/data/NEXT/NEW/data/mc/kr83m/pmaps/sthresh/hdf5/new.kr83m.${SLURM_ARRAY_TASK_ID}.pmaps.h5
+OUTFILE=/n/holystore01/LABS/guenette_lab/Lab/data/NEXT/NEW/data/mc/kr83m/kdsts/sthresh/kdsts_w/new.kr83m.${SLURM_ARRAY_TASK_ID}.kdst.h5
 
 python /n/holystore01/LABS/guenette_lab/Users/tcontreras/nz_studies/nz_analysis/macros/update_width.py ${PMAP} ${KDST} ${OUTFILE}

@@ -8,6 +8,7 @@ import warnings
 import numpy  as np
 import glob
 import matplotlib.pyplot as plt
+import pandas as pd
 
 from krcal.core.kr_types                      import masks_container
 from krcal.map_builder.map_builder_functions  import calculate_map
@@ -51,8 +52,9 @@ zcut = 550
 z_range_plot = (10, 550)
 q_range_plot = (700,2000)
 outputdir = '/n/home12/tcontreras/plots/nz_analysis/samp0_int0/'
+file_type = 'kdsts_w'
 
-input_folder       = '/n/holystore01/LABS/guenette_lab/Lab/data/NEXT/NEW/data/trigger1/8088/kdsts/nothresh/'
+input_folder       = '/n/holystore01/LABS/guenette_lab/Lab/data/NEXT/NEW/data/trigger1/8088/samp_int_thresh/samp0_int0/kdsts_w/'
 input_geo_folder = '/n/holystore01/LABS/guenette_lab/Lab/data/NEXT/NEW/data/trigger1/8088/kdsts/sthresh/'
 input_dst_file     = '*.h5'
 if not run_all:
@@ -64,7 +66,11 @@ else:
     geo_dsts         = glob.glob(input_geo_folder + input_dst_file)
 
 ### Load files
-dst = load_dsts(input_dsts, 'DST', 'Events')
+if file_type == 'kdsts':
+    dst = load_dsts(input_dsts, 'DST', 'Events')
+if file_type == 'kdsts_w':
+    dst = [pd.read_hdf(filename, 'df') for filename in input_dsts]
+    dst = pd.concat(dst, ignore_index=True)
 geo_dst = load_dsts(geo_dsts, 'DST', 'Events')
 dst = dst.sort_values(by=['time'])
 geo_dst = dst.sort_values(by=['time'])
@@ -77,7 +83,7 @@ elif zero_suppressed==5:
     m = 85.79
 elif zero_suppressed == 0:
     m = 124.
-q_noisesub = dst.S2q.to_numpy() - m*(dst.S2w.to_numpy())
+q_noisesub = dst.S2q.to_numpy() - m*(dst.S2w_sipm.to_numpy())
 dst.S2q = q_noisesub
 
 ### Select events with 1 S1 and 1 S2

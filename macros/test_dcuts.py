@@ -80,6 +80,12 @@ def GetDistr_dcuts(dcuts, pmap_folder, kdst_folder, fnum, kdst_file_end='kdsts.h
     events_y = event_info.Y
     events_z = event_info.Z
 
+    plt.hist2d(event_info.X, event_info.Y, bins=50)
+    plt.xlabel('X [mm]')
+    plt.ylabel('Y [mm]')
+    plt.savefig(outputdir + 'xy.png')
+    plt.close()
+
     # Get pmap information
     pmap_file = f'run_{run_number}_trigger1_{fnum}_pmaps.h5'
     pmaps = pmaps_io.load_pmaps(pmap_folder + pmap_file)
@@ -122,11 +128,11 @@ if __name__ == '__main__':
 
     fnum = int(sys.argv[1])
 
-    dcuts = np.arange(10,100,1)
+    dcuts = [10, 50, 100, 150] #np.arange(10,100,1)
     zrange = (0,550)
-    rcut = 100
+    rcut = 500
     run_number = 8088
-    outputdir = '/n/home12/tcontreras/plots/nz_analysis/'
+    outputdir = '/n/home12/tcontreras/plots/nz_analysis/test/'
     data_dir = f'/n/holystore01/LABS/guenette_lab/Lab/data/NEXT/NEW/data/trigger1/{run_number}/'
     kdst_dir = data_dir + 'kdsts/sthresh/'
     pmap_dir = data_dir + 'samp-999_int-999/pmaps/'
@@ -137,9 +143,20 @@ if __name__ == '__main__':
     zfile = outdata_dir + f'z_distr_{fnum}.out'
 
     charges, events_x, events_y, events_z = GetDistr_dcuts(dcuts, pmap_dir, kdst_dir, fnum, kdst_file_end='kdst.h5', zrange=zrange)
+    print('Charges', charges)    
+    q_range = (0,3500)
+    for dcut in dcuts:
+        plt.hist(charges[dcut], bins=100, label=f'd<{dcut}', range=q_range, alpha=0.5)
+    plt.xlabel('Charge [pes]')
+    plt.legend()
+    plt.title(f'Charge with SiPMs < d from event center')
+    plt.savefig(outputdir + 'test_dcuts.png')
+    plt.close()
+    
+    """
     with open(outfile, "w") as f:
         json.dump(str(charges), f)
     np.savetxt(xfile, events_x, delimiter=',') 
     np.savetxt(yfile, events_y, delimiter=',') 
     np.savetxt(zfile, events_z, delimiter=',') 
-
+    """
